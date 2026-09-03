@@ -1,0 +1,74 @@
+import streamlit as st
+import pickle
+
+# Page configuration
+st.set_page_config(
+    page_title="AI Fake News Detector",
+    page_icon="📰",
+    layout="centered"
+)
+
+# Load trained model (cached so it doesn't reload on every interaction)
+@st.cache_resource
+def load_model():
+    with open("fake_news_model.pkl", "rb") as file:
+        return pickle.load(file)
+
+try:
+    model = load_model()
+except FileNotFoundError:
+    st.error("Model file not found. Please make sure 'fake_news_model.pkl' is in the app directory.")
+    st.stop()
+
+# Title
+st.title("📰 AI Fake News Detector")
+st.write(
+    "Enter a news article below and let the machine-learning model "
+    "classify it."
+)
+
+# Text input
+news_text = st.text_area(
+    "Enter News Article",
+    height=220,
+    placeholder="Paste the news article here..."
+)
+
+# Analyze button
+if st.button("🔍 Analyze News", use_container_width=True):
+
+    if not news_text.strip():
+        st.warning("Please enter a news article.")
+
+    else:
+        # Prediction
+        prediction = model.predict([news_text])[0]
+
+        # Probability (guard in case the model doesn't support it)
+        if hasattr(model, "predict_proba"):
+            probabilities = model.predict_proba([news_text])[0]
+            confidence = max(probabilities) * 100
+        else:
+            confidence = None
+
+        st.subheader("Prediction")
+
+        # Handle labels
+        label = str(prediction).lower()
+
+        if label in ["fake", "0"]:
+            st.error("🔴 Likely Fake News")
+        else:
+            st.success("🟢 Likely Real News")
+
+        if confidence is not None:
+            st.metric(
+                "Model Confidence",
+                f"{confidence:.2f}%"
+            )
+            st.progress(confidence / 100)
+
+        st.info(
+            "⚠️ This is an AI model prediction, not a fact-check. "
+            "Always verify important information using reliable sources."
+        )
